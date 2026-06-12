@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mrp_bom_variant_matrix_wizard,mrp.bom.variant.matrix.wizard,model_mrp_bom_variant_matrix_wizard,mrp.group_mrp_user,1,1,1,1
+access_mrp_bom_variant_matrix_component_line,mrp.bom.variant.matrix.component.line,model_mrp_bom_variant_matrix_component_line,mrp.group_mrp_user,1,1,1,1
+access_mrp_bom_variant_matrix_quantity_line,mrp.bom.variant.matrix.quantity.line,model_mrp_bom_variant_matrix_quantity_line,mrp.group_mrp_user,1,1,1,1
+access_mrp_bom_variant_matrix_preview_line,mrp.bom.variant.matrix.preview.line,model_mrp_bom_variant_matrix_preview_line,mrp.group_mrp_user,1,1,1,1

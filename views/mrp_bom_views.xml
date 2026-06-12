@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mrp_bom_form_view_variant_matrix" model="ir.ui.view">
+        <field name="name">mrp.bom.form.variant.matrix</field>
+        <field name="model">mrp.bom</field>
+        <field name="inherit_id" ref="mrp.mrp_bom_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/header" position="inside">
+                <button
+                    name="action_open_variant_matrix_wizard"
+                    string="Generate Variant Matrix"
+                    type="object"
+                    class="btn-secondary"
+                />
+            </xpath>
+        </field>
+    </record>
+</odoo>
