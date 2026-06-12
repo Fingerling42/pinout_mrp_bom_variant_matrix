@@ -13,6 +13,12 @@
                         type="object"
                         class="btn-secondary"
                     />
+                    <button
+                        name="action_open_variant_component_wizard"
+                        string="Generate Variant Components"
+                        type="object"
+                        class="btn-secondary"
+                    />
                 </header>
             </xpath>
         </field>

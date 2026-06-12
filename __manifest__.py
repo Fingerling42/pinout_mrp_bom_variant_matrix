@@ -15,6 +15,7 @@
         "security/ir.model.access.csv",
         "views/mrp_bom_views.xml",
         "views/bom_variant_matrix_wizard_views.xml",
+        "views/bom_variant_component_wizard_views.xml",
     ],
     "installable": True,
     "application": False,

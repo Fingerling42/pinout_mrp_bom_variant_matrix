@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mrp_bom_variant_component_wizard_view_form" model="ir.ui.view">
+        <field name="name">mrp.bom.variant.component.wizard.form</field>
+        <field name="model">mrp.bom.variant.component.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generate Variant Components">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="bom_id" readonly="1" force_save="1"/>
+                            <field name="product_tmpl_id" readonly="1"/>
+                            <field name="mode"/>
+                            <field name="matrix_key"/>
+                        </group>
+                        <group>
+                            <field name="create_sections"/>
+                            <field name="sequence_start"/>
+                            <field name="sequence_step"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Component Rules" name="component_rules">
+                            <field name="rule_line_ids">
+                                <tree editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="component_tmpl_id"/>
+                                    <field name="rule_key"/>
+                                    <field name="quantity"/>
+                                    <field name="product_uom_id"/>
+                                    <field name="parent_attribute_1_id"/>
+                                    <field name="component_attribute_1_id"/>
+                                    <field name="parent_attribute_2_id"/>
+                                    <field name="component_attribute_2_id"/>
+                                    <field name="parent_attribute_3_id" optional="hide"/>
+                                    <field name="component_attribute_3_id" optional="hide"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Preview" name="preview">
+                            <field name="preview_line_ids" readonly="1">
+                                <tree>
+                                    <field name="rule_id"/>
+                                    <field name="component_tmpl_id"/>
+                                    <field name="component_product_id"/>
+                                    <field name="quantity"/>
+                                    <field name="product_uom_id"/>
+                                    <field name="apply_ptav_ids" widget="many2many_tags"/>
+                                    <field name="existing_bom_line_id"/>
+                                    <field name="status"/>
+                                    <field name="message"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <footer>
+                    <button
+                        name="action_preview"
+                        string="Preview"
+                        type="object"
+                        class="btn-secondary"
+                    />
+                    <button
+                        name="action_apply_components"
+                        string="Apply Components"
+                        type="object"
+                        class="btn-primary"
+                    />
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

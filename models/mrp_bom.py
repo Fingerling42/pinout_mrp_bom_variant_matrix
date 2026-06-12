@@ -17,6 +17,19 @@ class MrpBom(models.Model):
             },
         }
 
+    def action_open_variant_component_wizard(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Generate Variant Components",
+            "res_model": "mrp.bom.variant.component.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_bom_id": self.id,
+            },
+        }
+
 
 class MrpBomLine(models.Model):
     _inherit = "mrp.bom.line"
@@ -38,5 +51,14 @@ class MrpBomLine(models.Model):
     pinout_matrix_quantity_axis_ptav_id = fields.Many2one(
         comodel_name="product.template.attribute.value",
         string="Pinout Matrix Quantity Axis Value",
+        copy=False,
+    )
+    pinout_matrix_component_tmpl_id = fields.Many2one(
+        comodel_name="product.template",
+        string="Pinout Matrix Component Template",
+        copy=False,
+    )
+    pinout_matrix_rule_key = fields.Char(
+        string="Pinout Matrix Rule Key",
         copy=False,
     )
