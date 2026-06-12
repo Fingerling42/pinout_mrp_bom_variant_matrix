@@ -19,7 +19,7 @@
                             <field name="create_sections"/>
                             <field
                                 name="section_by_component_axis"
-                                attrs="{'invisible': [('create_sections', '=', False)]}"
+                                invisible="not create_sections"
                             />
                             <field name="matrix_key"/>
                             <field name="sequence_start"/>
