@@ -37,6 +37,15 @@ class MrpBomVariantComponentWizard(models.TransientModel):
         string="Create Sections",
         default=True,
     )
+    missing_variant_policy = fields.Selection(
+        selection=[
+            ("error", "Block apply"),
+            ("skip", "Skip missing variants"),
+        ],
+        string="Missing Component Variants",
+        default="error",
+        required=True,
+    )
     sequence_start = fields.Integer(
         string="Sequence Start",
         default=2000,
@@ -270,20 +279,39 @@ class MrpBomVariantComponentWizard(models.TransientModel):
                 )
 
         component_product = self.env["product.product"]
+        status = False
+        status_message = False
         if not messages:
-            component_product, product_message = self._find_component_product(
-                rule, component_ptavs
-            )
+            (
+                component_product,
+                product_message,
+                product_error_code,
+            ) = self._find_component_product(rule, component_ptavs)
             if product_message:
-                messages.append(product_message)
+                if (
+                    product_error_code == "missing"
+                    and self.missing_variant_policy == "skip"
+                ):
+                    status = "skip_missing"
+                    status_message = product_message
+                else:
+                    messages.append(product_message)
 
-        status, status_message, existing_line = self._get_preview_status(
-            rule, apply_ptav_ids, component_product
-        )
+        if component_product:
+            status, status_message, existing_line = self._get_preview_status(
+                rule, apply_ptav_ids, component_product
+            )
+        else:
+            existing_line = self.env["mrp.bom.line"]
+            status = status or "error"
+            status_message = status_message or "Component variant was not resolved."
+
         if messages:
             status = "error"
             status_message = "; ".join(messages)
-        elif rule.product_uom_id.category_id != component_product.uom_id.category_id:
+        elif component_product and (
+            rule.product_uom_id.category_id != component_product.uom_id.category_id
+        ):
             status = "error"
             status_message = "UoM %s is not compatible with component %s." % (
                 rule.product_uom_id.display_name,
@@ -458,14 +486,16 @@ class MrpBomVariantComponentWizard(models.TransientModel):
                 self.env["product.product"],
                 "No component variant found for %s."
                 % ", ".join(component_ptavs.mapped("display_name")),
+                "missing",
             )
         if len(matching_variants) > 1:
             return (
                 self.env["product.product"],
                 "Multiple component variants match %s."
                 % ", ".join(component_ptavs.mapped("display_name")),
+                "multiple",
             )
-        return matching_variants, False
+        return matching_variants, False, False
 
     def _get_parent_axis_ptavs(self, attribute):
         if not self.product_tmpl_id or not attribute:
@@ -628,6 +658,7 @@ class MrpBomVariantComponentPreviewLine(models.TransientModel):
             ("new", "New"),
             ("update", "Update"),
             ("skip_duplicate", "Skip Duplicate"),
+            ("skip_missing", "Skip Missing"),
             ("error", "Error"),
         ],
         readonly=True,

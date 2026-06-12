@@ -47,6 +47,11 @@ the parent color needs one mapping, while an emotion-specific component can map
 both color and emotion. The preview resolves the matching component product
 variant and creates BoM lines with the correct parent `Apply on Variants` values.
 
+If not every variant combination exists for a component template, set Missing
+Component Variants to `Skip missing variants`. Missing component variants will
+stay visible in the preview as skipped rows and will not block applying the
+valid generated lines.
+
 ## License
 
 Apache-2.0

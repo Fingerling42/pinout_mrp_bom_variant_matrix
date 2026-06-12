@@ -11,6 +11,7 @@
                             <field name="bom_id" readonly="1" force_save="1"/>
                             <field name="product_tmpl_id" readonly="1"/>
                             <field name="mode"/>
+                            <field name="missing_variant_policy"/>
                             <field name="matrix_key"/>
                         </group>
                         <group>
