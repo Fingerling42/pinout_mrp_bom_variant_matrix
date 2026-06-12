@@ -442,10 +442,13 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
             "sequence": sequence,
             "display_type": "line_section",
             "name": ptav.name,
+            "product_id": False,
             "product_qty": 1.0,
+            "product_uom_id": False,
             "pinout_matrix_generated": True,
             "pinout_matrix_key": self.matrix_key,
             "pinout_matrix_component_axis_ptav_id": ptav.id,
+            "pinout_matrix_quantity_axis_ptav_id": False,
         }
 
     def _prepare_product_line_vals(self, component_line, quantity_line, sequence):
