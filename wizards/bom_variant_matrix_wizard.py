@@ -597,6 +597,7 @@ class MrpBomVariantMatrixQuantityLine(models.TransientModel):
     )
     quantity = fields.Float(
         string="Quantity",
+        digits=(16, 6),
         required=True,
     )
     sequence = fields.Integer(default=10)
@@ -644,7 +645,10 @@ class MrpBomVariantMatrixPreviewLine(models.TransientModel):
         string="Component Product",
         readonly=True,
     )
-    quantity = fields.Float(readonly=True)
+    quantity = fields.Float(
+        digits=(16, 6),
+        readonly=True,
+    )
     product_uom_id = fields.Many2one(
         comodel_name="uom.uom",
         string="UoM",
