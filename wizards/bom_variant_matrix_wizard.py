@@ -649,6 +649,9 @@ class MrpBomVariantMatrixPreviewLine(models.TransientModel):
     )
     apply_ptav_ids = fields.Many2many(
         comodel_name="product.template.attribute.value",
+        relation="mrp_bom_var_matrix_preview_ptav_rel",
+        column1="preview_id",
+        column2="ptav_id",
         string="Apply on Variants",
         readonly=True,
     )
