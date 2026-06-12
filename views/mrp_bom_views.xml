@@ -5,13 +5,15 @@
         <field name="model">mrp.bom</field>
         <field name="inherit_id" ref="mrp.mrp_bom_form_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//form/header" position="inside">
-                <button
-                    name="action_open_variant_matrix_wizard"
-                    string="Generate Variant Matrix"
-                    type="object"
-                    class="btn-secondary"
-                />
+            <xpath expr="//form/sheet[1]" position="before">
+                <header>
+                    <button
+                        name="action_open_variant_matrix_wizard"
+                        string="Generate Variant Matrix"
+                        type="object"
+                        class="btn-secondary"
+                    />
+                </header>
             </xpath>
         </field>
     </record>
