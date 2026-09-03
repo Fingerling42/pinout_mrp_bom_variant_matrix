@@ -1,7 +1,7 @@
 {
     "name": "Pinout MRP BoM Variant Matrix Generator",
-    "summary": "Generate variant-specific BoM matrix lines from two product template attributes",
-    "version": "17.0.1.0.0",
+    "summary": "Generate variant-specific BoM lines from one- or two-axis matrices",
+    "version": "17.0.1.1.0",
     "category": "Manufacturing",
     "author": "Pinout LTD",
     "license": "Other OSI approved licence",  # Apache-2.0

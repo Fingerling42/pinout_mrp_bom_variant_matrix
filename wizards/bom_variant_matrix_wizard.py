@@ -26,6 +26,15 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
     quantity_axis_attribute_id = fields.Many2one(
         comodel_name="product.attribute",
         string="Quantity Axis Attribute",
+        help=(
+            "Optional. Leave empty to use the default quantity for every "
+            "component-axis value."
+        ),
+    )
+    default_quantity = fields.Float(
+        string="Default Quantity",
+        digits=(16, 6),
+        default=1.0,
         required=True,
     )
     product_uom_id = fields.Many2one(
@@ -117,7 +126,7 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
                     }
                 }
 
-            if wizard.component_axis_attribute_id and wizard.quantity_axis_attribute_id:
+            if wizard.component_axis_attribute_id:
                 generated_key = wizard._make_matrix_key()
                 if not wizard.matrix_key or wizard.matrix_key == "variant_matrix":
                     wizard.matrix_key = generated_key
@@ -165,16 +174,17 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
                     self.env["mrp.bom.line"].create(section_vals)
                 sequence += self.sequence_step
 
-            for quantity_line in self._ordered_quantity_lines():
+            for quantity_ptav, quantity in self._iter_quantity_mappings():
                 preview_line = self._find_preview_line(
-                    component_line.ptav_id, quantity_line.ptav_id
+                    component_line.ptav_id, quantity_ptav
                 )
                 if not preview_line or preview_line.status == "skip_duplicate":
                     continue
 
                 vals = self._prepare_product_line_vals(
                     component_line,
-                    quantity_line,
+                    quantity_ptav,
+                    quantity,
                     sequence,
                 )
                 if (
@@ -210,10 +220,15 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
                 "Variant matrix generation is intended for template BoMs. "
                 "The selected BoM is restricted to a single product variant."
             )
-        if not self.component_axis_attribute_id or not self.quantity_axis_attribute_id:
-            raise UserError("Select both matrix axis attributes.")
-        if self.component_axis_attribute_id == self.quantity_axis_attribute_id:
+        if not self.component_axis_attribute_id:
+            raise UserError("Select a component axis attribute.")
+        if (
+            self.quantity_axis_attribute_id
+            and self.component_axis_attribute_id == self.quantity_axis_attribute_id
+        ):
             raise UserError("Component and quantity axes must be different.")
+        if not self.quantity_axis_attribute_id and self.default_quantity <= 0:
+            raise UserError("Default quantity must be greater than zero.")
         if not self.product_uom_id:
             raise UserError("Select a product unit of measure.")
         if not self.matrix_key:
@@ -221,9 +236,12 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
         if self.sequence_step <= 0:
             raise UserError("Sequence step must be greater than zero.")
 
-        missing = (
-            self.component_axis_attribute_id + self.quantity_axis_attribute_id
-        ).filtered(lambda attribute: not self._get_axis_ptavs(attribute))
+        axis_attributes = self.component_axis_attribute_id
+        if self.quantity_axis_attribute_id:
+            axis_attributes |= self.quantity_axis_attribute_id
+        missing = axis_attributes.filtered(
+            lambda attribute: not self._get_axis_ptavs(attribute)
+        )
         if missing:
             raise UserError(
                 "The selected product template does not contain these attributes: %s"
@@ -294,23 +312,26 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
         self._validate_configuration()
         if not self.component_mapping_line_ids:
             self._sync_component_mapping_lines()
-        if not self.quantity_mapping_line_ids:
+        if self.quantity_axis_attribute_id and not self.quantity_mapping_line_ids:
             self._sync_quantity_mapping_lines()
-        if not self.component_mapping_line_ids or not self.quantity_mapping_line_ids:
+        if not self.component_mapping_line_ids or (
+            self.quantity_axis_attribute_id and not self.quantity_mapping_line_ids
+        ):
             raise UserError("Matrix mapping lines could not be built.")
         self.preview_line_ids.unlink()
 
         commands = []
         seen_combinations = set()
         for component_line in self._ordered_component_lines():
-            for quantity_line in self._ordered_quantity_lines():
-                key = (component_line.ptav_id.id, quantity_line.ptav_id.id)
+            for quantity_ptav, quantity in self._iter_quantity_mappings():
+                key = (component_line.ptav_id.id, quantity_ptav.id)
                 if key in seen_combinations:
                     commands.append(
                         fields.Command.create(
                             self._prepare_preview_error_vals(
                                 component_line,
-                                quantity_line,
+                                quantity_ptav,
+                                quantity,
                                 "Duplicate preview combination.",
                             )
                         )
@@ -319,23 +340,29 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
                 seen_combinations.add(key)
                 commands.append(
                     fields.Command.create(
-                        self._prepare_preview_line_vals(component_line, quantity_line)
+                        self._prepare_preview_line_vals(
+                            component_line, quantity_ptav, quantity
+                        )
                     )
                 )
         self.preview_line_ids = commands
 
-    def _prepare_preview_line_vals(self, component_line, quantity_line):
-        target_ptav_ids = [component_line.ptav_id.id, quantity_line.ptav_id.id]
+    def _prepare_preview_line_vals(self, component_line, quantity_ptav, quantity):
+        target_ptav_ids = [component_line.ptav_id.id]
+        if quantity_ptav:
+            target_ptav_ids.append(quantity_ptav.id)
         status, message, existing_line = self._get_preview_status(target_ptav_ids)
         if not component_line.component_product_id:
             status = "error"
             message = "Missing component product for %s." % component_line.ptav_id.name
-        elif not quantity_line.quantity or quantity_line.quantity <= 0:
+        elif not quantity or quantity <= 0:
             status = "error"
-            message = (
-                "Quantity must be greater than zero for %s."
-                % quantity_line.ptav_id.name
-            )
+            if quantity_ptav:
+                message = "Quantity must be greater than zero for %s." % (
+                    quantity_ptav.name
+                )
+            else:
+                message = "Default quantity must be greater than zero."
         elif (
             self.product_uom_id.category_id
             != component_line.component_product_id.uom_id.category_id
@@ -348,9 +375,9 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
 
         return {
             "component_axis_ptav_id": component_line.ptav_id.id,
-            "quantity_axis_ptav_id": quantity_line.ptav_id.id,
+            "quantity_axis_ptav_id": quantity_ptav.id,
             "component_product_id": component_line.component_product_id.id,
-            "quantity": quantity_line.quantity,
+            "quantity": quantity,
             "product_uom_id": self.product_uom_id.id,
             "apply_ptav_ids": [fields.Command.set(target_ptav_ids)],
             "existing_bom_line_id": existing_line.id,
@@ -358,13 +385,17 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
             "message": message,
         }
 
-    def _prepare_preview_error_vals(self, component_line, quantity_line, message):
-        target_ptav_ids = [component_line.ptav_id.id, quantity_line.ptav_id.id]
+    def _prepare_preview_error_vals(
+        self, component_line, quantity_ptav, quantity, message
+    ):
+        target_ptav_ids = [component_line.ptav_id.id]
+        if quantity_ptav:
+            target_ptav_ids.append(quantity_ptav.id)
         return {
             "component_axis_ptav_id": component_line.ptav_id.id,
-            "quantity_axis_ptav_id": quantity_line.ptav_id.id,
+            "quantity_axis_ptav_id": quantity_ptav.id,
             "component_product_id": component_line.component_product_id.id,
-            "quantity": quantity_line.quantity,
+            "quantity": quantity,
             "product_uom_id": self.product_uom_id.id,
             "apply_ptav_ids": [fields.Command.set(target_ptav_ids)],
             "status": "error",
@@ -451,14 +482,18 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
             "pinout_matrix_quantity_axis_ptav_id": False,
         }
 
-    def _prepare_product_line_vals(self, component_line, quantity_line, sequence):
+    def _prepare_product_line_vals(
+        self, component_line, quantity_ptav, quantity, sequence
+    ):
         self.ensure_one()
-        target_ptav_ids = [component_line.ptav_id.id, quantity_line.ptav_id.id]
+        target_ptav_ids = [component_line.ptav_id.id]
+        if quantity_ptav:
+            target_ptav_ids.append(quantity_ptav.id)
         return {
             "bom_id": self.bom_id.id,
             "sequence": sequence,
             "product_id": component_line.component_product_id.id,
-            "product_qty": quantity_line.quantity,
+            "product_qty": quantity,
             "product_uom_id": self.product_uom_id.id,
             "bom_product_template_attribute_value_ids": [
                 fields.Command.set(target_ptav_ids)
@@ -466,15 +501,16 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
             "pinout_matrix_generated": True,
             "pinout_matrix_key": self.matrix_key,
             "pinout_matrix_component_axis_ptav_id": component_line.ptav_id.id,
-            "pinout_matrix_quantity_axis_ptav_id": quantity_line.ptav_id.id,
+            "pinout_matrix_quantity_axis_ptav_id": quantity_ptav.id,
         }
 
-    def _find_preview_line(self, component_ptav, quantity_ptav):
+    def _find_preview_line(self, component_ptav, quantity_ptav=False):
         self.ensure_one()
+        quantity_ptav_id = quantity_ptav.id if quantity_ptav else False
         return self.preview_line_ids.filtered(
             lambda line: (
                 line.component_axis_ptav_id == component_ptav
-                and line.quantity_axis_ptav_id == quantity_ptav
+                and line.quantity_axis_ptav_id.id == quantity_ptav_id
             )
         )[:1]
 
@@ -509,12 +545,19 @@ class MrpBomVariantMatrixWizard(models.TransientModel):
             lambda line: (line.sequence, line.ptav_id.id)
         )
 
+    def _iter_quantity_mappings(self):
+        self.ensure_one()
+        if not self.quantity_axis_attribute_id:
+            yield self.env["product.template.attribute.value"], self.default_quantity
+            return
+        for quantity_line in self._ordered_quantity_lines():
+            yield quantity_line.ptav_id, quantity_line.quantity
+
     def _make_matrix_key(self):
         self.ensure_one()
-        names = [
-            self.component_axis_attribute_id.name or "",
-            self.quantity_axis_attribute_id.name or "",
-        ]
+        names = [self.component_axis_attribute_id.name or ""]
+        if self.quantity_axis_attribute_id:
+            names.append(self.quantity_axis_attribute_id.name or "")
         parts = []
         for name in names:
             slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
